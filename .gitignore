@@ -18,7 +18,7 @@ __pycache__/
 *.onnx
 *.rknn
 *.rkllm
-!/LICENSE.RKLLM
+!/licenses/LICENSE.RKLLM
 *.gguf
 *.so
 *.whl

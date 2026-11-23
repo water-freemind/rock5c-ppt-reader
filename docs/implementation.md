@@ -16,14 +16,16 @@ flowchart LR
 
 ## 各章节如何对应实现
 
+报告的语言与分工可以写成：应用层用 Python 编排界面、图像采集、摘要请求、存储和通信。PP-OCR 经过 RKNN Lite 调用 NPU。本地语言模型由 C++ 程序调用 RKLLM，Python 负责启动子进程、读取输出和显示速度。
+
 | 报告章节 | 可以引用的实现 |
 | --- | --- |
-| 采集与图像预处理 | [camera.py](../camera.py) 用后台线程读取 V4L2 最新帧。[image_processing.py](../image_processing.py) 对四角选区做透视校正，[auto_capture.py](../auto_capture.py) 检查画面清晰度、稳定时间和相似页面。 |
-| 整页 OCR | [ocr_engine.py](../ocr_engine.py) 通过 RKNN Lite 依次调用 PP-OCRv4 检测和识别。OpenCV 负责裁切和透视变换，[reading_order.py](../reading_order.py) 负责阅读顺序。识别原文、框线图和 OCR 输入可由 [page_evidence.py](../page_evidence.py) 导出。 |
-| 摘要与人机交互 | [summary_controls.py](../summary_controls.py) 绑定来源、模型与进度。[npu_summary.py](../npu_summary.py) 调用 RKLLM C++ 启动器，[deepseek_summary.py](../deepseek_summary.py) 用 Python 标准库 HTTP 客户端处理可选云端请求。修改原文后可重新生成。 |
-| 相册、历史和课堂 | [capture_album.py](../capture_album.py) 支持多选识别、存历史、加入课堂与撤销删除。[records.py](../records.py) 管理同页多来源记录。[collections_store.py](../collections_store.py) 保存页序、摘要和来源快照。追加或修改页后，已有摘要仍对应生成时的来源。 |
-| TCP 通信与恢复 | [tcp_transport.py](../tcp_transport.py) 使用四字节网络序长度和 UTF-8 JSON。[receiver.py](../receiver.py) 写盘后回复记录编号及修订标识。[outbox.py](../outbox.py) 保存待发队列，收到匹配的确认后移除。 |
-| 测试与问题分析 | 单元和 GUI 回归可查看 `test_*.py`。截图、识别差异和耗时可从现场实测及导出材料获取。报告中分别标注测试所用的模型来源、样本和运行环境。 |
+| 采集与图像预处理 | [camera.py](../board_app/capture/camera.py) 用后台线程读取 V4L2 最新帧。[image_processing.py](../board_app/ocr/image_processing.py) 对四角选区做透视校正，[auto_capture.py](../board_app/capture/auto_capture.py) 检查画面清晰度、稳定时间和相似页面。 |
+| 整页 OCR | [ocr_engine.py](../board_app/ocr/ocr_engine.py) 通过 RKNN Lite 依次调用 PP-OCRv4 检测和识别。OpenCV 负责裁切和透视变换，[reading_order.py](../board_app/ocr/reading_order.py) 负责阅读顺序。识别原文、框线图和 OCR 输入可由 [page_evidence.py](../board_app/storage/page_evidence.py) 导出。 |
+| 摘要与人机交互 | [summary_controls.py](../board_app/ui/summary_controls.py) 绑定来源、模型与进度。[npu_summary.py](../board_app/summary/npu_summary.py) 调用 RKLLM C++ 启动器，[deepseek_summary.py](../board_app/summary/deepseek_summary.py) 用 Python 标准库 HTTP 客户端处理可选云端请求。修改原文后可重新生成。 |
+| 相册、历史和课堂 | [capture_album.py](../board_app/ui/capture_album.py) 支持多选识别、存历史、加入课堂与撤销删除。[records.py](../shared/records.py) 管理同页多来源记录。[collections_store.py](../board_app/storage/collections_store.py) 保存页序、摘要和来源快照。追加或修改页后，已有摘要仍对应生成时的来源。 |
+| TCP 通信与恢复 | [tcp_transport.py](../shared/tcp_transport.py) 使用四字节网络序长度和 UTF-8 JSON。[receiver.py](../windows_receiver/receiver.py) 写盘后回复记录编号及修订标识。[outbox.py](../board_app/outbox.py) 保存待发队列，收到匹配的确认后移除。 |
+| 测试与问题分析 | 单元和 GUI 回归可查看 [tests/](../tests/)。截图、识别差异和耗时可从现场实测及导出材料获取。报告中分别标注测试所用的模型来源、样本和运行环境。 |
 
 ## 已验证的板端流程
 
