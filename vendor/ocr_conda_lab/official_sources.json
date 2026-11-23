@@ -1,0 +1,38 @@
+[
+  {
+    "file": "utils/__init__.py",
+    "url": "https://github.com/airockchip/rknn_model_zoo/blob/v2.3.0/examples/PPOCR/PPOCR-System/python/utils/__init__.py",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "modified": false
+  },
+  {
+    "file": "utils/operators.py",
+    "url": "https://github.com/airockchip/rknn_model_zoo/blob/v2.3.0/examples/PPOCR/PPOCR-System/python/utils/operators.py",
+    "sha256": "3a312c2fc552fe1dea4701e17d75f4d9c96eae7f58eb31c1694a3ad4478bfc66",
+    "modified": false
+  },
+  {
+    "file": "utils/db_postprocess.py",
+    "url": "https://github.com/airockchip/rknn_model_zoo/blob/v2.3.0/examples/PPOCR/PPOCR-System/python/utils/db_postprocess.py",
+    "sha256": "c95a6a0ef6c1e9e6939b08b764111df7e74ffd428cf848dbea1c651894f7730d",
+    "modified": false
+  },
+  {
+    "file": "utils/rec_postprocess.py",
+    "url": "https://github.com/airockchip/rknn_model_zoo/blob/v2.3.0/examples/PPOCR/PPOCR-System/python/utils/rec_postprocess.py",
+    "sha256": "262ba17fe1d03da6a6a5f083608dc6955340250b5770f1245926f4a04e87d33f",
+    "modified": false
+  },
+  {
+    "file": "ppocr_keys_v1.txt",
+    "url": "https://github.com/airockchip/rknn_model_zoo/blob/v2.3.0/examples/PPOCR/PPOCR-System/model/ppocr_keys_v1.txt",
+    "sha256": "28b2362ad4ab2dc38769aa72feb535e3a9ddb3fd2a7585a05920e6393b1dc7f7",
+    "modified": false
+  },
+  {
+    "file": "LICENSE.official",
+    "url": "https://github.com/airockchip/rknn_model_zoo/blob/v2.3.0/LICENSE",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "modified": false
+  }
+]

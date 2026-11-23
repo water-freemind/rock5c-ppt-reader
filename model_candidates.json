@@ -1,0 +1,65 @@
+{
+  "selection_status": "qwen3_4b_default_and_qwen3_8b_optional_npu_verified",
+  "local_inference_requirement": "NPU_RKLLM_only",
+  "loading_policy": "one_model_at_a_time_unload_before_switch",
+  "default_context_target": 4096,
+  "candidates": [
+    {
+      "id": "qwen3-8b",
+      "name": "Qwen3-8B",
+      "role": "optional_larger_model",
+      "source": "https://huggingface.co/Qwen/Qwen3-8B",
+      "rkllm_quantization_target": "RK3588_W8A8",
+      "converted_candidate": {
+        "repository": "dulimov/Qwen3-8B-rk3588-1.2.1-base",
+        "revision": "0633d48953eebfcba8ffa97cd45eb8a02dfabeb2",
+        "file": "Qwen3-8B-rk3588-w8a8-opt-0-hybrid-ratio-0.0.rkllm",
+        "installed_file": "models/Qwen3-8B_RK3588_w8a8.rkllm",
+        "size_bytes": 8855826990,
+        "sha256": "b32f16ed647c002b178cd0df004ad1a83534e45d97d7688aa607b09eb1c2a550",
+        "toolkit_declared": "1.2.1",
+        "toolkit_reported": "1.2.1b1",
+        "runtime_verified": "1.2.3",
+        "status": "board_sha256_verified"
+      },
+      "thinking": false,
+      "status": "board_npu_verified"
+    },
+    {
+      "id": "qwen3-4b",
+      "name": "Qwen3-4B",
+      "role": "deployed_default",
+      "source": "https://huggingface.co/Qwen/Qwen3-4B",
+      "rkllm_quantization_target": "RK3588_W8A8",
+      "converted_candidate": {
+        "repository": "HanzoHuang/Qwen3-4B-RKLLM",
+        "revision": "50413c209c3cc1a707625a2fe38c91e1485550ac",
+        "file": "RK3588/Qwen3-4B_RK3588_w8a8.rkllm",
+        "size_bytes": 4846783300,
+        "sha256": "6f53a7b5ec8430f95a9fb6e6279e8a4744c9952d8ec59c4a7303b92ebc8b50d5",
+        "toolkit_declared": "1.2.3",
+        "license": "Apache-2.0",
+        "status": "pc_and_board_sha256_verified"
+      },
+      "thinking": false,
+      "status": "board_npu_verified"
+    },
+    {
+      "id": "qwen2.5-7b-instruct",
+      "name": "Qwen2.5-7B-Instruct",
+      "role": "alternative_summary_comparison_candidate",
+      "source": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
+      "rkllm_quantization_target": "requires_RK3588_compatible_conversion_and_board_validation",
+      "status": "needs_compatible_driver_runtime_model_and_board_validation"
+    }
+  ],
+  "validation": [
+    "same_actual_camera_OCR_and_same_manually_corrected_text",
+    "3_to_5_points_valid_structure",
+    "no_unsupported_numeric_facts_or_background",
+    "preserve_numbers_units_dates",
+    "first_output_generation_total_and_model_load_time_separate",
+    "peak_memory_and_actual_NPU_load",
+    "no_CPU_model_fallback"
+  ]
+}
