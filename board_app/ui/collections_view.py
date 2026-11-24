@@ -2,11 +2,12 @@
 import queue
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
+from tkinter.scrolledtext import ScrolledText
 import cv2
 from PIL import Image, ImageTk
 from board_app.storage.collections_store import CollectionStore
 from board_app.summary.collection_summary import CollectionSummarizer
-from board_app.summary.npu_summary import NpuSummarizer
+from board_app.summary.npu_summary import DEFAULT_MODEL, NpuSummarizer
 from board_app.summary.deepseek_summary import DeepSeekSummarizer
 from shared.records import OCR_BACKEND, RecordStore
 from board_app.ui.ui_layout import FONT, INK, MUTED, ActionButton, repeat_while_open
@@ -205,10 +206,80 @@ def show_collections(app, parent, identifier=None):
         rgb.thumbnail((540, 570))
         viewer.photo = ImageTk.PhotoImage(rgb)
         tk.Label(content, image=viewer.photo, bg='#f7f9fd').pack(side='left', fill='both', expand=True)
-        source_text = tk.Text(content, wrap='word', font=(FONT, 11), width=40, relief='flat', padx=14, pady=10)
-        source_text.pack(side='left', fill='both', expand=True)
-        source_text.insert('1.0', '原文\n'+item['text']+'\n\n'+app.summary_display(item['summary']))
-        source_text.configure(state='disabled')
+        tabs = ttk.Notebook(content)
+        tabs.pack(side='left', fill='both', expand=True, padx=(12, 0))
+        summary_tab = tk.Frame(tabs, bg='white')
+        original_tab = tk.Frame(tabs, bg='white')
+        tabs.add(summary_tab, text='单页摘要')
+        tabs.add(original_tab, text='OCR 原文')
+
+        def text_view(parent):
+            view = ScrolledText(parent, wrap='word', font=(FONT, 11), width=37,
+                                relief='flat', padx=12, pady=9)
+            view.pack(fill='both', expand=True)
+            return view
+
+        def display(view, value):
+            view.configure(state='normal')
+            view.replace('1.0', 'end-1c', value)
+            view.configure(state='disabled')
+            view.yview_moveto(0)
+
+        display(text_view(summary_tab), app.summary_display(item['summary']))
+        controls = tk.Frame(original_tab, bg='white', padx=8, pady=5)
+        controls.pack(fill='x')
+        notice = tk.StringVar(viewer)
+        tk.Label(original_tab, textvariable=notice, bg='white', fg=MUTED, wraplength=350,
+                 justify='left').pack(fill='x')
+        source = item['text']
+        source_text = text_view(original_tab)
+        display(source_text, source)
+        arranged = None
+        show_arranged = False
+
+        def show_original():
+            nonlocal show_arranged
+            show_arranged = False
+            display(source_text, source)
+            notice.set('已显示原始换行')
+
+        def arrange():
+            nonlocal show_arranged
+            show_arranged = True
+            if arranged is not None:
+                display(source_text, arranged)
+                notice.set('已显示整理后的段落')
+                return
+            if app.busy:
+                notice.set('正在处理，请稍候')
+                return
+            selected = app.summary_model.get() if app.summary_provider.get() == '本地 NPU' else DEFAULT_MODEL
+            backend = app.summarizer = NpuSummarizer(model=selected)
+
+            def work():
+                try:
+                    return backend.format_paragraphs(source)
+                except (ValueError, OSError, RuntimeError) as exc:
+                    return dict(error=str(exc))
+
+            def done(result):
+                nonlocal arranged
+                if not viewer.winfo_exists():
+                    return
+                if 'error' in result:
+                    if show_arranged:
+                        notice.set(result['error'])
+                    return
+                arranged = result['text']
+                if show_arranged:
+                    display(source_text, arranged)
+                    notice.set('已整理段落' if arranged != source else '没有适合合并的换行')
+
+            notice.set('正在用本地 NPU 整理段落…')
+            app.run(work, done, input_bound=False)
+
+        ActionButton(controls, 'AI 整理段落', arrange, primary=True, width=112, height=30).pack(side='left')
+        ActionButton(controls, '查看原始换行', show_original, width=112, height=30).pack(side='left', padx=6)
         return viewer
 
     def display_result(event=None):

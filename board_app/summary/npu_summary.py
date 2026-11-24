@@ -11,8 +11,10 @@ import time
 from shared.paths import PROJECT_ROOT
 
 from board_app.summary.summary_client import missing_numeric_facts, unexpected_numeric_facts
-from board_app.summary.summary_format import parse_summary
-from board_app.summary.review_format import parse_review, parse_knowledge
+from board_app.summary.summary_format import collection_point_target, parse_summary
+from board_app.summary.review_format import (
+    merge_paragraph_lines, paragraph_batches, parse_knowledge, parse_paragraph_merges, parse_review,
+)
 
 LOCAL_MODELS = {
     'Qwen3-4B · 快速 · W8A8': 'Qwen3-4B',
@@ -54,8 +56,16 @@ class NpuSummarizer:
                 except ProcessLookupError:
                     pass
 
+    def format_paragraphs(self, text):
+        lines = text.split('\n')
+        boundaries = set()
+        for start, batch in paragraph_batches(lines):
+            result = self.summarize(batch, task='paragraphs')
+            boundaries.update(start+index for index in result['values'])
+        return dict(model=self.model, text=merge_paragraph_lines(lines, boundaries))
+
     def summarize(self, text, task='page'):
-        if task not in ('page', 'collection', 'review', 'knowledge'):
+        if task not in ('page', 'collection', 'review', 'knowledge', 'paragraphs'):
             raise ValueError('不支持的摘要任务')
         text = text.strip()
         if not text:
@@ -86,6 +96,10 @@ class NpuSummarizer:
                    str(source), str(prefix)]
         if task != 'page':
             command.append(task)
+            if task == 'collection':
+                target_points = collection_point_target(text)
+                if target_points > 5:
+                    command.append(str(target_points))
         elif self.model == 'Qwen3-8B':
             command.append('page-coverage')
         started = time.monotonic()
@@ -131,10 +145,14 @@ class NpuSummarizer:
             raise RuntimeError('NPU摘要运行失败，未采用输出。日志：'+str(folder))
         raw = prefix.with_name('result_response.txt').read_text(encoding='utf-8')
         metrics = json.loads(prefix.with_name('result_metrics.json').read_text(encoding='utf-8'))
-        if task in ('review', 'knowledge'):
-            parser = parse_review if task == 'review' else parse_knowledge
+        if task in ('review', 'knowledge', 'paragraphs'):
             try:
-                value = parser(raw, text) if task == 'review' else parser(raw)
+                if task == 'review':
+                    value = parse_review(raw, text)
+                elif task == 'paragraphs':
+                    value = sorted(parse_paragraph_merges(raw, text))
+                else:
+                    value = parse_knowledge(raw)
             except ValueError as exc:
                 raise ValueError('模型输出无法读取，原始结果保存在：'+str(folder)) from exc
             result = dict(model=self.model, source_text=text, values=value,
@@ -146,7 +164,7 @@ class NpuSummarizer:
             result = parse_summary(raw, collection=task == 'collection',
                                    min_points=self.min_collection_points if task == 'collection' else 3)
         except ValueError as exc:
-            raise ValueError('NPU模型返回格式错误，请重试。原始结果保存在：'+str(folder)) from exc
+            raise ValueError('NPU摘要校验失败：{}。原始结果保存在：{}'.format(exc, folder)) from exc
         # 仅去除列表标签，不填补、拆分或编写模型的正文内容。
         result['points'] = [re.sub(r'^要点\s*[1-5一二三四五]\s*[:：]\s*', '', p.strip())
                             for p in result['points']]

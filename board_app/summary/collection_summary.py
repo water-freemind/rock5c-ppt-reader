@@ -2,8 +2,7 @@
 import re
 import time
 from shared.records import OCR_BACKEND
-
-PAGE_TAG = r'\[(P\d+(?:\s*,\s*P\d+)*)\]'
+from board_app.summary.summary_format import COLLECTION_BATCH_PAGES, PAGE_TAG, collection_pages
 
 
 def point_references(points, allowed):
@@ -25,7 +24,7 @@ def batches(blocks, limit=900):
         if len(block) > limit:
             raise ValueError('单页摘要过长，请先在历史记录中校订至900字符以内')
         candidate = (current+'\n\n'+block).strip()
-        if len(candidate) > limit:
+        if len(candidate) > limit or len(collection_pages(candidate)) > COLLECTION_BATCH_PAGES:
             groups.append(current)
             current = block
         else:
@@ -46,6 +45,8 @@ class CollectionSummarizer:
     def summarize(self, sources, *, raw_ocr=False):
         started = time.monotonic()
         allowed = {s['page'] for s in sources}
+        if not allowed:
+            raise ValueError('请先选择要整理的页面')
         blocks = []
         for source in sources:
             summary = source.get('summary', {})
@@ -56,20 +57,20 @@ class CollectionSummarizer:
                 blocks.extend('[{}]\n{}'.format(source['page'], text[start:start+840])
                               for start in range(0, len(text), 840))
             else:
-                blocks.append('[{}] {}\n{}'.format(source['page'], summary['title'],
-                                                    '\n'.join(summary['points'])))
+                text = '\n'.join([summary['title'], *summary['points']])
+                blocks.append('[{}] {}'.format(source['page'], re.sub(PAGE_TAG, r'［\1］', text)))
         calls = []
         first_output = None
         for level in range(4):
             groups = batches(blocks)
-            next_blocks = []
+            results = []
             for index, text in enumerate(groups, 1):
                 self.progress(dict(stage='综合摘要 第{}层 {}/{}'.format(level+1, index, len(groups))))
                 call_offset = time.monotonic()-started
                 value = self.backend.summarize(text, task='collection')
                 if first_output is None and value.get('first_token_seconds') is not None:
                     first_output = call_offset+value['first_token_seconds']
-                chunk_pages = set(re.findall(r'P\d+', ','.join(re.findall(PAGE_TAG, text))))
+                chunk_pages = collection_pages(text)
                 references = point_references(value['points'], chunk_pages)
                 if set(ref for refs in references for ref in refs) != chunk_pages:
                     raise ValueError('综合摘要遗漏了部分来源页，请重试或减少课堂页数')
@@ -78,17 +79,23 @@ class CollectionSummarizer:
                                   generated_tokens=value.get('generated_tokens'),
                                   tokens_per_second=value.get('tokens_per_second'),
                                   evidence_directory=value.get('evidence_directory')))
-                if len(groups) == 1:
-                    value.update(point_sources=references, collection_calls=calls,
-                                 elapsed_seconds=time.monotonic()-started,
-                                 first_token_seconds=first_output,
-                                 input_kind='album-ocr' if raw_ocr else
-                                 'classroom-pages' if any(s.get('summary', {}).get('backend') == OCR_BACKEND for s in sources)
-                                 else 'saved-page-summaries',
-                                 source_pages=[source['page'] for source in sources])
-                    return value
-                next_blocks.append('\n'.join(value['points']))
-            if sum(map(len, next_blocks)) >= sum(map(len, blocks)):
-                raise ValueError('模型未压缩多页内容，请减少课堂页数或校订单页摘要后重试')
+                results.append(dict(value, point_sources=references))
+            next_blocks = ['\n'.join(result['points']) for result in results]
+            if (len(groups) == 1 or len(allowed) > 5 or level == 3
+                    or any(len(block) > 900 for block in next_blocks)
+                    or sum(map(len, next_blocks)) >= sum(map(len, blocks))):
+                break
             blocks = next_blocks
-        raise ValueError('课堂内容过长，达到综合摘要分层上限；请拆分课堂')
+        result = results[-1]
+        if len(results) > 1:
+            result = dict(result, title='多页综合摘要（分组）', source_text='\n\n'.join(groups))
+            for key in ('points', 'point_sources'):
+                result[key] = [item for part in results for item in part[key]]
+            for key in ('quality_warnings', 'missing_numeric_facts', 'unexpected_numeric_facts'):
+                result[key] = list(dict.fromkeys(item for part in results for item in part.get(key, [])))
+            result['output_format_repaired'] = any(part.get('output_format_repaired') for part in results)
+        result.update(collection_calls=calls, elapsed_seconds=time.monotonic()-started,
+                      first_token_seconds=first_output, input_kind='album-ocr' if raw_ocr else
+                      'classroom-pages' if any(s.get('summary', {}).get('backend') == OCR_BACKEND for s in sources)
+                      else 'saved-page-summaries', source_pages=[source['page'] for source in sources])
+        return result

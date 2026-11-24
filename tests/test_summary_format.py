@@ -1,6 +1,6 @@
 import json
 import unittest
-from board_app.summary.summary_format import parse_summary
+from board_app.summary.summary_format import collection_point_target, parse_summary
 
 
 class SummaryFormatTests(unittest.TestCase):
@@ -50,6 +50,23 @@ class SummaryFormatTests(unittest.TestCase):
         result = parse_summary(raw, collection=True, min_points=2)
         self.assertEqual(result['points'], ['[P1] 第一页要点', '[P2] 第二页要点'])
         self.assertTrue(result['output_format_repaired'])
+
+    def test_seven_page_summary_can_keep_seven_points(self):
+        points = ['[P{}] 本页要点'.format(page) for page in range(1, 8)]
+        raw = json.dumps(dict(title='七页课堂', points=points))
+        self.assertEqual(collection_point_target('[P1,P2] 概括\n'+'\n'.join(points)), 7)
+        self.assertEqual(parse_summary(raw, collection=True)['points'], points)
+        with self.assertRaisesRegex(ValueError, '返回了7条'):
+            parse_summary(raw)
+
+    def test_collection_recovers_unquoted_cited_lines_without_rewriting_text(self):
+        raw = ('{"title": "课堂", "points": [\n'
+               ' [P1] 第一条，\n [P1,P2] 第二条,\n [P2] 第三条\n]}')
+        result = parse_summary(raw, collection=True)
+        self.assertTrue(result['output_format_repaired'])
+        self.assertEqual(result['points'], ['[P1] 第一条，', '[P1,P2] 第二条', '[P2] 第三条'])
+        with self.assertRaises(ValueError):
+            parse_summary(raw.replace('[P1] 第一条，', '无页码的正文'), collection=True)
 
 
 if __name__ == '__main__':

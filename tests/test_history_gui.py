@@ -9,13 +9,15 @@ import unittest
 import zipfile
 from unittest.mock import patch
 from PIL import Image
+from board_app.storage.page_evidence import export_pages_evidence
+from board_app.ui.ui_layout import ActionButton
 import board_app.app as application
 from tests.test_page_records import summary
 from shared.paths import PROJECT_ROOT
 
 
 class HistoryGuiTests(unittest.TestCase):
-    def test_history_draft_reopens_and_search_exports_matching_pages(self):
+    def test_history_search_reopens_draft_without_evidence_export_buttons(self):
         original_root = application.ROOT
         with tempfile.TemporaryDirectory() as temporary:
             application.ROOT = Path(temporary)
@@ -45,16 +47,21 @@ class HistoryGuiTests(unittest.TestCase):
                 self.assertIsNone(app.record)
                 self.assertEqual(app.store.load(first['record_id'])['text'], '教学串行总线')
                 self.assertTrue(app.text.cget('undo'))
-                fields = app.history().history_fields
-                fields['pages'].selection_set(0, 'end')
-                path = str(Path(temporary)/'evidence.zip')
-                with patch('board_app.ui.history_view.filedialog.asksaveasfilename', return_value=path):
-                    fields['export']()
-                    deadline = time.monotonic()+5
-                    while app.busy and time.monotonic() < deadline:
-                        root.update()
-                        time.sleep(.01)
-                self.assertFalse(app.busy)
+                history = app.history()
+                self.assertEqual(history.history_fields['pages'].cget('selectmode'), 'browse')
+                widgets = list(root.winfo_children())
+                buttons = set()
+                while widgets:
+                    widget = widgets.pop()
+                    if isinstance(widget, ActionButton):
+                        buttons.add(widget.text)
+                    widgets.extend(widget.winfo_children())
+                self.assertNotIn('导出验收材料', buttons)
+                self.assertNotIn('批量导出验收材料', buttons)
+                self.assertIn('导出笔记', buttons)
+                self.assertIn('发送到电脑', buttons)
+                path = Path(temporary)/'evidence.zip'
+                export_pages_evidence(app.store, app.store.list_records(), path)
                 with zipfile.ZipFile(path) as archive:
                     self.assertEqual(len([name for name in archive.namelist() if name.endswith('/original.png')]), 2)
             finally:

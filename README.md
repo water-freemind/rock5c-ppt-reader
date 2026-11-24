@@ -6,11 +6,21 @@
 
 ## 使用流程
 
-1. 在「页面工作台」导入图片或用 IMX219 拍照。整页识别后可编辑原文，也可以框选漏字区域补识。
+1. 在「页面工作台」导入图片或用 IMX219 拍照后，点击「识别文字」。可以直接校对文字。断行多时点「AI 整理段落」，预览后应用。原图里尚能读清的漏字可用区域补识。
 2. 想连续采集时，开启「自动采集」。相册支持多选、批量 OCR、保存原文、综合摘要、删除和恢复。
-3. 在工作台或相册点击「加入课堂」，可新建课堂或追加到已有课堂。同一页的不同来源共用一条历史记录。综合摘要中的页码可以打开生成时的原图和原文。
+3. 在工作台或相册点击「加入课堂」，可新建课堂或追加到已有课堂。长课件的综合摘要可超过五条，并保留每条要点对应的页码。点击「打开原页」默认查看单页摘要，可切到「OCR 原文」查看生成时用的文字、整理段落或恢复原始换行。
 4. 摘要默认使用本地 Qwen3-4B，部署对应权重后可切换 Qwen3-8B。也可在工作台选择 DeepSeek API，云端模式会把待摘要文字发给服务端。
-5. 在 Windows 打开接收端，选择接收文件夹并开始监听。板端发送的笔记保存为 Markdown 和 JSON，发送失败可在板端队列中查看和重试。
+5. 「历史记录」按图片合并同页的不同摘要来源。「导出笔记」支持 Markdown 和 TXT。发送到 Windows 时，先在电脑接收端选择目录并开始监听。Windows 接收端保存 Markdown 和 JSON。发送失败可在板端队列中查看和重试。
+
+### 区域补识
+
+整页 OCR 漏掉一小块文字时，可以对原图中那一块单独再跑一次 NPU OCR。适合补页脚、表格里的一个单元格，或尺寸较小的数字和单位。
+
+1. 在「识别原文」点击漏字应该接在哪一行，把光标放在那一行。
+2. 在左侧图片上依次点击目标区域的两个对角，然后点击「区域补识」。
+3. 检查结果，确认后点「插入正文」。补识内容会插入光标所在行之后。
+
+少量错字可直接修改，换行太碎时用「AI 整理段落」。源图文字模糊或过曝时，重新拍摄更容易获得可识别的输入。
 
 ## 目录结构
 
@@ -19,7 +29,7 @@ board_app/         ROCK 5C 板端 GUI 与业务
   capture/        V4L2 摄像头、曝光与自动采集
   ocr/            整页识别、图像校正与阅读顺序
   summary/        本地 NPU、DeepSeek 和多页摘要
-  storage/        课堂分组与 OCR 验收材料
+  storage/        课堂分组与 OCR 证据
   ui/             工作台、相册、历史及课堂界面
 windows_receiver/ Windows 接收端
 shared/           板端和接收端共用的记录格式与 TCP 协议
@@ -38,6 +48,7 @@ Python 负责 GUI、数据处理、文件保存和网络通信。OCR 由 Python 
 | --- | --- |
 | 图像采集、曝光与自动去重 | [camera.py](board_app/capture/camera.py)、[camera_exposure.py](board_app/capture/camera_exposure.py)、[auto_capture.py](board_app/capture/auto_capture.py) |
 | 图像校正与整页 OCR | [image_processing.py](board_app/ocr/image_processing.py)、[ocr_engine.py](board_app/ocr/ocr_engine.py)、[reading_order.py](board_app/ocr/reading_order.py)、[ocr_comparison.py](board_app/ocr/ocr_comparison.py) |
+| 区域补识与段落整理 | [app.py](board_app/app.py)、[review_workflow.py](board_app/ui/review_workflow.py)、[review_format.py](board_app/summary/review_format.py) |
 | 本地与云端摘要 | [npu_summary.py](board_app/summary/npu_summary.py)、[rkllm_probe123.cpp](tools/rkllm_probe123.cpp)、[deepseek_summary.py](board_app/summary/deepseek_summary.py) |
 | 桌面界面、相册与课堂 | [app.py](board_app/app.py)、[ui_layout.py](board_app/ui/ui_layout.py)、[capture_album.py](board_app/ui/capture_album.py)、[collections_view.py](board_app/ui/collections_view.py)、[collection_summary.py](board_app/summary/collection_summary.py) |
 | 存储、导出与发送 | [records.py](shared/records.py)、[page_evidence.py](board_app/storage/page_evidence.py)、[outbox.py](board_app/outbox.py)、[tcp_transport.py](shared/tcp_transport.py)、[receiver.py](windows_receiver/receiver.py) |
@@ -65,7 +76,7 @@ env/bin/python -m tools.build_npu_runner
 env/bin/python -m board_app
 ```
 
-构建 C++ 启动器需要 g++。通过 SSH 启动已有 VNC 桌面时，可用 `env/bin/python -m tools.launch_gui :1`，其中 `:1` 替换为实际显示编号。界面「连接设置」可以修改摄像头设备节点和电脑接收地址。
+构建 C++ 启动器需要 g++。已有板端部署在更新源码后也要重新构建启动器，然后重新打开应用。通过 SSH 启动已有 VNC 桌面时，可用 `env/bin/python -m tools.launch_gui :1`，其中 `:1` 替换为实际显示编号。界面「连接设置」可以修改摄像头设备节点和电脑接收地址。
 
 ## Windows 接收端
 

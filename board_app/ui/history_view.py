@@ -1,12 +1,11 @@
 """一页一条历史，选择其中的摘要来源；不重新调用模型。"""
 from datetime import datetime
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import ttk
 import cv2
 from board_app.ui.ui_layout import FONT, INK, MUTED, ActionButton
 from board_app.ui.history_editor import open_history_editor
 from shared.records import OCR_BACKEND, RecordStore
-from board_app.storage.page_evidence import export_pages_evidence
 from board_app.ui.review_workflow import close_review
 
 
@@ -61,7 +60,7 @@ def show_history(app, parent):
     body.pack(fill='both', expand=True, padx=24, pady=14)
     box = tk.Listbox(body, font=(FONT, 11), relief='flat', bg='#f7f9fd', fg=INK,
                      highlightthickness=0, selectbackground='#dde5ff', activestyle='none',
-                     selectmode='extended', exportselection=False)
+                     selectmode='browse', exportselection=False)
     box.pack(side='left', fill='both', expand=True)
     scroll = ttk.Scrollbar(body, command=box.yview)
     scroll.pack(side='right', fill='y')
@@ -102,7 +101,7 @@ def show_history(app, parent):
     def load(event=None):
         record = current()
         if record is None:
-            status.set('请选择一页打开。多选可以批量导出。')
+            status.set('请选择一页打开。')
             return
         try:
             if not load_into_app(app, record):
@@ -139,34 +138,15 @@ def show_history(app, parent):
         if displayed:
             box.selection_set(0)
         selected()
-        status.set('显示 {} / {} 页 · 按 Ctrl 或 Shift 多选后批量导出。'.format(len(displayed), len(records)))
+        status.set('显示 {} / {} 页'.format(len(displayed), len(records)))
 
-    def export_selected():
-        if app.busy:
-            status.set('正在处理，请稍后再导出。')
-            return
-        selection = [displayed[i] for i in box.curselection()]
-        if not selection:
-            status.set('请先选择要导出的页面。')
-            return
-        path = filedialog.asksaveasfilename(parent=window, title='批量导出验收材料', defaultextension='.zip',
-                                            filetypes=[('验收材料 ZIP', '*.zip')], initialfile='PPT-验收材料.zip')
-        if not path:
-            return
-        def done(count):
-            notice = '已导出 {} 页，包含 {} 页的检测材料 · {}'.format(len(selection), count, path)
-            app.status.set(notice)
-            if window.winfo_exists():
-                status.set(notice)
-        app.run(lambda: export_pages_evidence(app.store, selection, path), done, input_bound=False)
     actions = tk.Frame(listing, bg='white')
     actions.pack(fill='x', padx=24, pady=(12, 20))
     ActionButton(actions, '打开页面', load, primary=True).pack(side='right')
     ActionButton(actions, '编辑所选摘要', edit).pack(side='right', padx=10)
-    ActionButton(actions, '批量导出验收材料', export_selected, width=150).pack(side='left')
     box.bind('<Double-1>', load)
     box.bind('<Return>', load)
     query.trace_add('write', filter_pages)
     filter_pages()
-    window.history_fields = dict(pages=box, source=source, load=load, edit=edit, query=query, export=export_selected)
+    window.history_fields = dict(pages=box, source=source, load=load, edit=edit, query=query)
     return window

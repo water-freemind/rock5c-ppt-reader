@@ -38,3 +38,48 @@ def parse_knowledge(raw):
     if not notes:
         raise ValueError('模型没有返回可用的知识补充')
     return notes
+
+
+def paragraph_batches(lines, limit=900):
+    """Number lines within each bounded batch, retaining the original offset."""
+    batch = []
+    size = 0
+    start = 0
+    for index, line in enumerate(lines):
+        numbered = '{}: {}'.format(len(batch)+1, line)
+        if not line.strip() or size+len(numbered)+1 > limit:
+            if len(batch) > 1:
+                yield start, '\n'.join(batch)
+            batch, size = [], 0
+        if not line.strip() or len(line)+4 > limit:
+            continue
+        if not batch:
+            start = index
+        numbered = '{}: {}'.format(len(batch)+1, line)
+        batch.append(numbered)
+        size += len(numbered)+1
+    if len(batch) > 1:
+        yield start, '\n'.join(batch)
+
+
+def parse_paragraph_merges(raw, source):
+    boundaries = read_list(raw, 'merge_after')
+    limit = len(source.split('\n'))-1
+    return {index for index in boundaries if type(index) is int and 1 <= index <= limit}
+
+
+_LIST_START = re.compile(r'^\s*(?:[•●▪◆■]|[-–]\s|[（(]?\d{1,3}[）)、.．](?!\d)|[一二三四五六七八九十]+[、.．])')
+
+
+def merge_paragraph_lines(lines, boundaries):
+    parts = []
+    for index, line in enumerate(lines):
+        if index:
+            previous = lines[index-1]
+            if index in boundaries and previous.strip() and line.strip() and not _LIST_START.match(line):
+                if re.search(r'[A-Za-z0-9]$', previous) and re.match(r'[A-Za-z0-9]', line):
+                    parts.append(' ')
+            else:
+                parts.append('\n')
+        parts.append(line)
+    return ''.join(parts)

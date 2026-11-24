@@ -4,7 +4,9 @@ import tempfile
 import unittest
 
 from shared.records import RecordStore
-from board_app.summary.review_format import parse_knowledge, parse_review
+from board_app.summary.review_format import (
+    merge_paragraph_lines, paragraph_batches, parse_knowledge, parse_paragraph_merges, parse_review,
+)
 from board_app.ui.review_workflow import apply_edits
 
 
@@ -13,6 +15,17 @@ def suggestion(original, replacement):
 
 
 class ReviewWorkflowTests(unittest.TestCase):
+    def test_paragraph_layout_preserves_words_list_markers_and_blank_lines(self):
+        lines = ['使用 UART', '发送数据。', '数值为 12', 'MHz。', '', '1. 参数', '2. 接线']
+        groups = list(paragraph_batches(lines))
+        self.assertEqual([offset for offset, _ in groups], [0, 5])
+        self.assertEqual(parse_paragraph_merges('{"merge_after":[1,3]}', groups[0][1]), {1, 3})
+        self.assertEqual(parse_paragraph_merges('{"merge_after":[true,4,2]}', groups[0][1]), {2})
+        self.assertEqual(merge_paragraph_lines(lines, {1, 3, 4, 5, 6}),
+                         '使用 UART发送数据。\n数值为 12 MHz。\n\n1. 参数\n2. 接线')
+        long_lines = ['甲'*895, '乙', '丙']
+        self.assertEqual(list(paragraph_batches(long_lines)), [(1, '1: 乙\n2: 丙')])
+
     def test_only_unique_non_numeric_source_is_eligible(self):
         raw = '硬件设设计，12V；串行总线，串行总线'
         proposals = [suggestion('设设计', '设计'), suggestion('12V', '21V'),

@@ -155,6 +155,17 @@ class CollectionTests(unittest.TestCase):
             short = [dict(page='P'+str(i), summary=dict(title='短页', points=['甲', '乙', '丙'])) for i in (1, 2)]
             CollectionSummarizer(MissingPage()).summarize(short)
 
+    def test_long_classroom_retains_all_cited_groups(self):
+        sources = [dict(page='P'+str(i), summary=dict(title='短页', points=['各页知识点'+str(i)]))
+                   for i in range(1, 13)]
+        backend = FakeBackend()
+        result = CollectionSummarizer(backend).summarize(sources)
+        self.assertEqual(len(backend.calls), 2)
+        self.assertEqual(len(result['points']), 6)
+        self.assertEqual(set(ref for refs in result['point_sources'] for ref in refs),
+                         {source['page'] for source in sources})
+        self.assertEqual(result['quality_warnings'], ['测试复核提示'])
+
     def test_real_tk_save_generate_and_readonly_source_link(self):
         import board_app.app as application
         import board_app.ui.collections_view as view

@@ -25,7 +25,7 @@ from board_app.storage.collections_store import CollectionStore
 from board_app.ui.collections_view import choose_classroom, show_collections
 from board_app.ocr.ocr_comparison import compare, find_comparison, image_digest
 from board_app.ui.comparison_view import show_comparison
-from board_app.storage.page_evidence import export_page_evidence, save_ocr_evidence
+from board_app.storage.page_evidence import save_ocr_evidence
 from board_app.capture.camera import Camera
 from board_app.ocr.image_processing import rectify_page
 from board_app.ui.review_workflow import close_review, editor_text, generate_assistance, show_region
@@ -310,6 +310,9 @@ class App:
     def review_ocr(self):
         generate_assistance(self, 'review')
 
+    def format_ocr(self):
+        generate_assistance(self, 'paragraphs')
+
     def ocr_order(self):
         return 'columns' if self.reading_order.get() == '先左栏后右栏' else 'rows'
 
@@ -515,25 +518,6 @@ class App:
             self.status.set('笔记导出失败：'+str(exc))
             return
         self.status.set('已导出笔记 · '+str(destination.resolve()))
-
-    def export_evidence(self):
-        if self.preview_in_use():
-            return
-        if not self.record:
-            self.status.set('请先保存或打开历史记录')
-            return
-        if self.busy:
-            self.status.set('正在处理，请稍候')
-            return
-        record = self.record
-        path = filedialog.asksaveasfilename(parent=self.root, defaultextension='.zip',
-                                          filetypes=[('ZIP 验收材料', '*.zip')],
-                                          initialfile='PPT-'+record['record_id'][:8]+'.zip')
-        if path:
-            def done(has_detection):
-                suffix = '' if has_detection else ' · 历史摘要缺原始检测记录'
-                self.status.set('已导出验收材料 '+path+suffix)
-            self.run(lambda: export_page_evidence(self.store, record, path), done, input_bound=False)
 
     def transmit(self):
         if self.preview_in_use():

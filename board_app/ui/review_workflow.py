@@ -1,5 +1,6 @@
 """Offer reviewable corrections in the OCR card and keep study notes with their summary."""
 import tkinter as tk
+from tkinter.scrolledtext import ScrolledText
 from board_app.ui.ui_layout import ActionButton, FONT, INK, MUTED
 from board_app.summary.npu_summary import DEFAULT_MODEL, NpuSummarizer
 
@@ -112,6 +113,32 @@ def show_region(app, value, source, anchor, bounds):
     app.status.set('区域文字已识别，确认后才插入正文')
 
 
+def show_paragraphs(app, result, source):
+    arranged = result['text']
+    if source == arranged:
+        app.status.set('没有适合合并的换行')
+        return
+    panel, actions = review_panel(app, '段落整理预览 · 只调整换行和衔接空格')
+    preview = ScrolledText(panel, height=4, wrap='word', font=(FONT, 11))
+    preview.pack(fill='both', expand=True)
+    preview.insert('1.0', arranged)
+    preview.configure(state='disabled')
+
+    def accept():
+        if editor_text(app) != source:
+            close_review(app)
+            app.status.set('正文已变化，请重新整理')
+            return
+        close_review(app)
+        app.text.replace('1.0', 'end-1c', arranged)
+        app.modified()
+        app.review_history.append(dict(kind='paragraphs', model=result['model']))
+        app.status.set('已整理段落，可继续编辑或生成摘要')
+
+    ActionButton(actions, '应用整理', accept, primary=True, width=92, height=29).pack(side='right')
+    app.status.set('确认预览后可应用段落整理')
+
+
 def generate_assistance(app, task):
     if app.preview_in_use():
         return
@@ -137,6 +164,9 @@ def generate_assistance(app, task):
         if task == 'review':
             show_edits(app, result, source)
             return
+        if task == 'paragraphs':
+            show_paragraphs(app, result, source)
+            return
         app.summary = dict(app.summary, knowledge=dict(model=result['model'], notes=result['values']))
         app.record = None
         app.show_summary(app.summary_display(app.summary))
@@ -148,5 +178,7 @@ def generate_assistance(app, task):
         else:
             app.status.set('知识补充已生成，点击「保存当前记录」即可随笔记导出')
 
-    app.run(lambda: backend.summarize(source, task=task), done)
+    operation = (lambda: backend.format_paragraphs(source)) if task == 'paragraphs' else (
+        lambda: backend.summarize(source, task=task))
+    app.run(operation, done)
     app.status.set('正在用本地 NPU {}处理…'.format(backend.model))

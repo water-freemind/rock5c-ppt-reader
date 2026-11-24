@@ -128,8 +128,7 @@ def build_interface(app):
         app.navigation[name] = button
     tk.Frame(sidebar, bg='#293951', height=1).pack(fill='x', padx=24, pady=10)
     for name, action in [('＋  导入图片', app.choose), ('保存当前记录', app.save_from_view), ('加入课堂', app.join_classroom),
-                         ('导出笔记', app.export), ('导出验收材料', app.export_evidence),
-                         ('发送到电脑', app.transmit)]:
+                         ('导出笔记', app.export), ('发送到电脑', app.transmit)]:
         button = ActionButton(sidebar, name, action, dark=True, height=36)
         button.pack(fill='x', padx=16, pady=3)
         if name == '保存当前记录':
@@ -223,7 +222,13 @@ def build_interface(app):
         if attr == 'text':
             ttk.Combobox(card_head, textvariable=app.reading_order, state='readonly',
                          values=('按行', '先左栏后右栏'), width=12, font=(FONT, 9)).pack(side='right', padx=(8, 8))
-        label(card, description, 9, MUTED, anchor='w', padx=18).pack(fill='x')
+        if attr == 'text':
+            hints = tk.Frame(card, bg='white')
+            hints.pack(fill='x', padx=18)
+            ActionButton(hints, 'AI 整理段落', app.format_ocr, width=112, height=28).pack(side='right')
+            label(hints, '可编辑原文，摘要使用当前文字。', 9, MUTED).pack(side='left')
+        else:
+            label(card, description, 9, MUTED, anchor='w', padx=18).pack(fill='x')
         text_frame = tk.Frame(card, bg='white')
         text_frame.pack(fill='both', expand=True, padx=(8, 12), pady=(8, 12))
         text = tk.Text(text_frame, height=1, width=1, wrap='char' if row else 'word', font=(FONT, 12), undo=not row,
