@@ -18,6 +18,7 @@ from shared.paths import PROJECT_ROOT
 
 class FakeBackend:
     def __init__(self, progress=None, model=None):
+        self.model = model
         self.calls = []
         self.progress = progress or (lambda event: None)
 
@@ -166,24 +167,51 @@ class CollectionTests(unittest.TestCase):
                          {source['page'] for source in sources})
         self.assertEqual(result['quality_warnings'], ['测试复核提示'])
 
+    def test_missing_page_is_summarized_using_only_its_source(self):
+        class OmittedPage(FakeBackend):
+            def summarize(self, text, task='page'):
+                value = super().summarize(text, task)
+                if len(self.calls) == 1:
+                    value['points'] = ['[P1] 第一页事实']*3
+                return value
+
+        source = [dict(page='P1', summary=dict(title='甲页', points=['甲页事实'])),
+                  dict(page='P2', summary=dict(title='乙页', points=['乙页事实']))]
+        backend = OmittedPage()
+        result = CollectionSummarizer(backend).summarize(source)
+        self.assertEqual(backend.calls[1], '[P2] 乙页\n乙页事实')
+        self.assertEqual(len(result['collection_calls']), 2)
+        self.assertEqual(result['point_sources'], [['P1']]*3+[['P2']]*3)
+
     def test_real_tk_save_generate_and_readonly_source_link(self):
         import board_app.app as application
         import board_app.ui.collections_view as view
         original_root, original_backend = application.ROOT, view.NpuSummarizer
         application.ROOT = self.root
         view.NpuSummarizer = FakeBackend
+        (self.root/'models').mkdir()
+        (self.root/'models/Qwen3-8B_RK3588_w8a8.rkllm').touch()
         root = tk.Tk()
         root.withdraw()
         app = application.App(root)
         try:
             window = app.collections()
             fields = window.collection_fields
+            generation = fields['generation']
+            choices = tuple(generation['values'])
+            choice = next(label for label in choices if 'Qwen3-8B' in label)
+            generation.set(choice)
+            generation.event_generate('<<ComboboxSelected>>')
+            root.update()
+            self.assertIn('Qwen3-8B', app.summary_model.get())
             fields['pages'].selection_set(0, 1)
             fields['name'].set('真实Tk测试课堂')
             group = fields['save']()
             self.assertEqual(len(group['pages']), 2)
             fields['generate']()
             self.assertTrue(app.busy)
+            self.assertIn('Qwen3-8B', app.summarizer.backend.model)
+            self.assertEqual(str(generation['state']), 'disabled')
             # 页面改变不应丢弃独立课堂任务的完成回调。
             app.version += 1
             end = time.monotonic()+5
@@ -192,6 +220,7 @@ class CollectionTests(unittest.TestCase):
                 time.sleep(.01)
             root.update()
             self.assertFalse(app.busy)
+            self.assertEqual(str(generation['state']), 'readonly')
             self.assertIn('已保存综合摘要', fields['status'].get())
             self.assertIn('测试复核提示', fields['output'].get('1.0', 'end'))
             saved = fields['state']['saved']

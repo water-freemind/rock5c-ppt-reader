@@ -8,10 +8,9 @@ from board_app.summary.npu_summary import DEFAULT_MODEL, NpuSummarizer, installe
 from board_app.summary.deepseek_summary import DeepSeekSummarizer, MODELS
 from board_app.ui.ui_layout import FONT, INK, MUTED, ActionButton, repeat_while_open
 from board_app.summary.credentials import CredentialStore
-from shared.paths import PROJECT_ROOT
 
 def setup_summary_controls(app):
-    local_models = installed_models(PROJECT_ROOT)
+    local_models = installed_models(app.store.root.parent)
     app.summary_provider = tk.StringVar(app.root, value='本地 NPU')
     app.summary_model = tk.StringVar(app.root, value=DEFAULT_MODEL)
     app.credentials = CredentialStore()
@@ -102,6 +101,7 @@ def setup_summary_controls(app):
         app.summary_activity.configure(mode='determinate', value=0)
     provider.bind('<<ComboboxSelected>>', selected)
     model.bind('<<ComboboxSelected>>', selected)
+    app.refresh_summary_selection = selected
     def poll():
         if app.closed:
             return

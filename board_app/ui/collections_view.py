@@ -1,4 +1,4 @@
-"""多页课堂管理；综合摘要来源沿用主界面的本地NPU/DeepSeek选择。"""
+"""多页课堂管理、综合摘要模型选择与来源快照。"""
 import queue
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
@@ -7,9 +7,10 @@ import cv2
 from PIL import Image, ImageTk
 from board_app.storage.collections_store import CollectionStore
 from board_app.summary.collection_summary import CollectionSummarizer
-from board_app.summary.npu_summary import DEFAULT_MODEL, NpuSummarizer
-from board_app.summary.deepseek_summary import DeepSeekSummarizer
+from board_app.summary.npu_summary import DEFAULT_MODEL, NpuSummarizer, installed_models
+from board_app.summary.deepseek_summary import DeepSeekSummarizer, MODELS
 from shared.records import OCR_BACKEND, RecordStore
+from board_app.ui.summary_controls import api_settings
 from board_app.ui.ui_layout import FONT, INK, MUTED, ActionButton, repeat_while_open
 
 
@@ -79,9 +80,37 @@ def show_collections(app, parent, identifier=None):
     chosen = {r['record_id']: r['active_summary_key'] for r in records}
     tk.Label(body, text='按 Ctrl 或 Shift 选历史页，再调整课堂顺序。', bg='white', fg=MUTED,
              font=(FONT, 9)).grid(row=2, column=0, sticky='w', pady=6)
-    source_label = tk.StringVar(window, value='综合摘要使用主界面当前选择的模型。')
-    tk.Label(body, textvariable=source_label, bg='white', fg=MUTED, font=(FONT, 9), wraplength=570,
-             justify='left').grid(row=2, column=1, sticky='w', padx=(20, 0))
+    generate_row = tk.Frame(body, bg='white')
+    generate_row.grid(row=2, column=1, sticky='ew', padx=(20, 0), pady=6)
+    tk.Label(generate_row, text='生成模型', bg='white', fg=INK, font=(FONT, 10)).pack(side='left', padx=(0, 8))
+    choices = {f'{provider} / {model}': (provider, model)
+               for provider, models in (('本地 NPU', installed_models(app.store.root.parent)), ('DeepSeek API', MODELS))
+               for model in models}
+    generation = ttk.Combobox(generate_row, values=tuple(choices), state='readonly',
+                              width=21, font=(FONT, 10), style='Summary.TCombobox')
+    generation.pack(side='left', fill='x', expand=True)
+    api_button = ActionButton(generate_row, 'API 密钥', lambda: api_settings(app), width=78, height=29)
+
+    def refresh_generation_picker():
+        current = app.summary_provider.get()+' / '+app.summary_model.get()
+        generation.set(current if current in choices else next(iter(choices)))
+        if choices[generation.get()][0] == 'DeepSeek API':
+            api_button.pack(side='right', padx=(6, 0))
+        else:
+            api_button.pack_forget()
+
+    def choose_generation(event=None):
+        if app.busy:
+            refresh_generation_picker()
+            return
+        provider, model = choices[generation.get()]
+        app.summary_provider.set(provider)
+        app.summary_model.set(model)
+        app.refresh_summary_selection()
+        refresh_generation_picker()
+
+    refresh_generation_picker()
+    generation.bind('<<ComboboxSelected>>', choose_generation)
     left = tk.Frame(body, bg='white')
     left.grid(row=4, column=0, sticky='nsew')
     pages = tk.Listbox(left, selectmode='extended', exportselection=False, font=(FONT, 11), height=4,
@@ -96,8 +125,12 @@ def show_collections(app, parent, identifier=None):
                            bg='#f7f9fd', fg=INK, selectbackground='#dde5ff')
     order_box.pack(fill='both', expand=True)
     ordered = []
-    source = ttk.Combobox(body, state='readonly', font=(FONT, 10))
-    source.grid(row=5, column=0, sticky='ew', pady=10)
+    source_row = tk.Frame(body, bg='white')
+    source_row.grid(row=5, column=0, sticky='ew', pady=10)
+    source_name = tk.StringVar(window, value='单页来源')
+    tk.Label(source_row, textvariable=source_name, bg='white', fg=INK, font=(FONT, 9)).pack(side='left', padx=(0, 6))
+    source = ttk.Combobox(source_row, state='readonly', width=14, font=(FONT, 10))
+    source.pack(side='left', fill='x', expand=True)
     output = tk.Text(body, wrap='word', font=(FONT, 12), relief='flat', bg='#f7f9fd', fg=INK,
                      padx=16, pady=12, width=1, height=10, state='disabled')
     output.grid(row=4, column=1, sticky='nsew', padx=(20, 0))
@@ -106,8 +139,11 @@ def show_collections(app, parent, identifier=None):
              justify='left').grid(row=7, column=0, columnspan=2, sticky='w', pady=10)
     progress = ttk.Progressbar(body, mode='indeterminate')
     progress.grid(row=6, column=0, columnspan=2, sticky='ew')
-    result_source = ttk.Combobox(body, state='readonly', font=(FONT, 10))
-    result_source.grid(row=5, column=1, sticky='ew', padx=(20, 0), pady=10)
+    saved_row = tk.Frame(body, bg='white')
+    saved_row.grid(row=5, column=1, sticky='ew', padx=(20, 0), pady=10)
+    tk.Label(saved_row, text='已保存的综合摘要', bg='white', fg=INK, font=(FONT, 9)).pack(side='left', padx=(0, 6))
+    result_source = ttk.Combobox(saved_row, state='readonly', width=14, font=(FONT, 10))
+    result_source.pack(side='left', fill='x', expand=True)
     events = queue.Queue()
 
     def show_order(index=None):
@@ -162,7 +198,7 @@ def show_collections(app, parent, identifier=None):
             state['active'] = None
             source.configure(values=())
             source.set('')
-            source_label.set('综合摘要使用主界面当前选择的模型。')
+            source_name.set('单页来源')
             return
         index = pages.index('active')
         if index not in selected:
@@ -171,7 +207,7 @@ def show_collections(app, parent, identifier=None):
         keys = list(record['summaries'])
         source['values'] = [RecordStore.source_label(record['summaries'][k]) for k in keys]
         source.current(keys.index(chosen[record['record_id']]))
-        source_label.set('当前页：'+record['summary']['title']+'；综合摘要使用主界面所选模型。')
+        source_name.set('P{} 单页来源'.format(ordered.index(index)+1))
         state['active'] = index
 
     def source_selected(event=None):
@@ -403,10 +439,14 @@ def show_collections(app, parent, identifier=None):
         collection = save_collection()
         if not collection:
             return
-        cloud = app.summary_provider.get() == 'DeepSeek API'
+        picked = generation.get()
+        provider, model = choices[picked]
+        cloud = provider == 'DeepSeek API'
+        def update(event):
+            events.put(dict(stage=picked+' · '+event['stage']))
         try:
             snapshots = store.snapshots(collection)
-            options = dict(progress=events.put, model=app.summary_model.get())
+            options = dict(progress=update, model=model)
             if cloud:
                 backend = DeepSeekSummarizer(app.deepseek_key.get(), **options)
             else:
@@ -416,11 +456,12 @@ def show_collections(app, parent, identifier=None):
         except (OSError, ValueError, KeyError) as exc:
             status.set(str(exc))
             return
-        worker = CollectionSummarizer(backend, progress=events.put)
+        worker = CollectionSummarizer(backend, progress=update)
         app.summarizer = worker
         state['generating'] = True
         progress.start(12)
-        source_label.set(('DeepSeek API / ' if cloud else '本地NPU / ')+app.summary_model.get())
+        generation.configure(state='disabled')
+        status.set(picked+' · 准备生成')
         def operation():
             try:
                 result = worker.summarize(snapshots)
@@ -435,6 +476,7 @@ def show_collections(app, parent, identifier=None):
             poll()
             progress.stop()
             state['generating'] = False
+            generation.configure(state='readonly')
             if 'error' in value:
                 status.set('综合摘要失败，可重试：'+value['error'])
                 return
@@ -485,5 +527,5 @@ def show_collections(app, parent, identifier=None):
     repeat_while_open(window, 100, poll)
     window.collection_fields = dict(pages=pages, source=source, name=name, save=save_collection, generate=generate,
                                     state=state, output=output, status=status, open_snapshot=open_snapshot,
-                                    order=order_box, move=move_page)
+                                    order=order_box, move=move_page, generation=generation, result_source=result_source)
     return window
