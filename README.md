@@ -4,6 +4,9 @@
 
 课程报告用的实机截图和图注见[功能截图](docs/screenshots/README.md)。
 
+- [简要使用教程（Word）](docs/guides/quick-start.docx)介绍识别、课堂整理、笔记导出和 Windows 接收。
+- [详细 Linux 教程（Word）](docs/guides/linux-tutorial.docx)按步骤讲解工程目录、摄像头、NPU 推理、数据保存、通信与故障排查。
+
 ## 使用流程
 
 1. 在「页面工作台」导入图片或用 IMX219 拍照后，点击「识别文字」。可以直接校对文字。断行多时点「AI 整理段落」，预览后应用。原图里尚能读清的漏字可用区域补识。
