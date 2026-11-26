@@ -92,6 +92,7 @@ class NpuSummarizer:
         environment['RKLLM_LOG_LEVEL'] = '1'
         # GUI 的 Tk 库预加载只属于 GUI，不传入 C++ 模型子进程。
         environment.pop('LD_PRELOAD', None)
+        # Python 传入模型路径和待摘要文本，C++ 启动器通过 RKLLM 调用板端 NPU。
         command = ['prlimit', '--nofile=102400:102400', str(binary), str(model),
                    str(source), str(prefix)]
         if task != 'page':

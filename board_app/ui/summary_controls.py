@@ -154,6 +154,7 @@ def start_summary(app):
     if app.busy:
         app.status.set('正在处理，请稍候')
         return
+    # 读取编辑框中的当前文字，让人工校对的内容也参与摘要。
     text = app.text.get('1.0', 'end-1c').strip()
     if not text:
         app.status.set('原文为空，不生成摘要')
@@ -223,6 +224,7 @@ def start_summary(app):
         status = '摘要完成；首字（含加载/连接）{:.2f}秒，总计{:.2f}秒{}'.format(
             result['first_token_seconds'], result['elapsed_seconds'],
             '；有内容需复核' if result.get('quality_warnings') else '')
+        # 已存入历史的页面生成新摘要后，自动把当前模型的结果存回同一页。
         if auto_save:
             if app.save():
                 app.summary_run.set(app.summary_job_label+' · 已自动保存')

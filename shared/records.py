@@ -65,6 +65,7 @@ class RecordStore:
             raise ValueError('原文为空，不能保存')
         if summary.get('source_text') != text.strip():
             raise ValueError('原文已修改，请重新生成摘要后保存')
+        # 用图片指纹找出已有页面，用摘要后端和模型名标记该页的不同摘要。
         key = self.summary_key(summary)
         fingerprint = hashlib.sha256(image_bytes).hexdigest()
         with store_lock(self.root):
@@ -85,6 +86,7 @@ class RecordStore:
                         and record['summaries'].get(key) == summary):
                     self.export(record, folder/'result.txt')
                     return record
+                # 写入新修订前，先归档上一份记录，方便追溯编辑历史。
                 archive = folder/'revisions'
                 archive.mkdir(exist_ok=True)
                 archive_key = hashlib.sha256(json.dumps(disk, sort_keys=True, ensure_ascii=False).encode()).hexdigest()

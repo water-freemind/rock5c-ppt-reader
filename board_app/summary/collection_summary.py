@@ -57,6 +57,7 @@ class CollectionSummarizer:
         allowed = {s['page'] for s in sources}
         if not allowed:
             raise ValueError('请先选择要整理的页面')
+        # 每段输入带着来源页码，长页拆开后仍能定位到同一张原页。
         blocks = []
         for source in sources:
             summary = source.get('summary', {})
@@ -94,6 +95,7 @@ class CollectionSummarizer:
                 chunk_pages = collection_pages(text)
                 missing = chunk_pages-{ref for refs in value['point_sources'] for ref in refs}
                 if missing:
+                    # 找出没被引用的来源段落，请模型针对这些页补写要点。
                     labels = '、'.join(sorted(missing, key=lambda page: int(page[1:])))
                     starts = [match.start() for match in re.finditer(r'(?m)^'+PAGE_TAG, text)]
                     sections = [text[a:b].strip() for a, b in zip(starts, starts[1:]+[len(text)])]

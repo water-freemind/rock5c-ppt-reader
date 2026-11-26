@@ -49,6 +49,7 @@ class Camera:
                         self.note = '曝光补偿失败：'+str(exc)
                         exposure.close()
                         exposure = None
+                # 预览只需要最新一帧。界面来不及显示时，丢掉队列里的旧帧。
                 try:
                     self.frames.get_nowait()
                 except queue.Empty:

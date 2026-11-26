@@ -21,6 +21,7 @@ def connection_message(exc):
 
 
 def receive_exact(conn, count):
+    # TCP 一次可能只收到部分数据，读满指定字节数才能解析这段内容。
     result = bytearray()
     while len(result) < count:
         chunk = conn.recv(count-len(result))
@@ -38,6 +39,7 @@ def receive(conn):
 
 
 def send(conn, record):
+    # 长度按 UTF-8 编码后的字节数计算，接收端据此读完一条完整记录。
     payload = json.dumps(record, ensure_ascii=False).encode('utf-8')
     if not 0 < len(payload) <= MAX_BYTES:
         raise ValueError('消息长度超出限制')

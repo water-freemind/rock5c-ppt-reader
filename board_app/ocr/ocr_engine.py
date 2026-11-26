@@ -99,6 +99,7 @@ class OCREngine:
             raise ValueError('图片无法读取')
         started = time.monotonic()
         rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # 第一阶段用 NPU 检测文字位置，再把检测结果转换为文字框坐标。
         data = DetResizeForTest(image_shape=[480, 480])({'image': rgb})
         outputs = self.models[0].inference(inputs=[data['image'][None, ...]])
         if outputs is None:
@@ -108,6 +109,7 @@ class OCREngine:
         boxes = sort_text_boxes(boxes, mode=reading_order)
         lines = []
         annotated = image.copy()
+        # 第二阶段沿文字框裁出并拉正每行，再交给 NPU 识别文字。
         for box in boxes:
             crop = cv2.cvtColor(crop_line(image, box), cv2.COLOR_BGR2RGB)
             fragments = []

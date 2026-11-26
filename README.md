@@ -1,11 +1,18 @@
 # ROCK 5C PPT 阅读助手
 
-嵌入式 Linux 课程设计。在 ROCK 5C 上采集 PPT 画面，通过 RK3588 NPU 识别整页文字，校对后生成摘要，整理课堂并发送笔记到 Windows。
+嵌入式 Linux 课程设计。用 ROCK 5C 拍摄或导入 PPT 图片，把整页文字识别出来，校对后生成笔记。
 
-课程报告用的实机截图和图注见[功能截图](docs/screenshots/README.md)。
+## 工程概览
+
+- **识别** · 板端用 PP-OCRv4 和 NPU 提取整页文字，识别结果可直接修改。
+- **整理** · 校对后可用板端 Qwen3 或 DeepSeek 生成摘要。单页笔记可保存到历史，多页可加入课堂并生成带来源页码的综合摘要。
+- **分享** · 笔记可导出为 Markdown 或 TXT，也可通过 TCP 发到 Windows 接收端。发送失败时，记录留在队列里等待重试。
+
+已部署的板子可从桌面打开「PPT 阅读助手」。第一次部署请看下方的[板端运行](#板端运行)和 [Windows 接收端](#windows-接收端)。想看代码，从板端的 [board_app](board_app)、电脑的 [windows_receiver](windows_receiver) 和两边共用的 [shared](shared) 开始。
 
 - [简要使用教程（Word）](docs/guides/quick-start.docx)介绍识别、课堂整理、笔记导出和 Windows 接收。
 - [详细 Linux 教程（Word）](docs/guides/linux-tutorial.docx)按步骤讲解工程目录、摄像头、NPU 推理、数据保存、通信与故障排查。
+- [功能截图](docs/screenshots/README.md)提供板端和接收端的实机画面及图注。
 
 ## 使用流程
 
@@ -79,7 +86,7 @@ env/bin/python -m tools.build_npu_runner
 env/bin/python -m board_app
 ```
 
-构建 C++ 启动器需要 g++。已有板端部署在更新源码后也要重新构建启动器，然后重新打开应用。通过 SSH 启动已有 VNC 桌面时，可用 `env/bin/python -m tools.launch_gui :1`，其中 `:1` 替换为实际显示编号。界面「连接设置」可以修改摄像头设备节点和电脑接收地址。
+构建 C++ 启动器需要 g++。首次部署或更新 C++ 启动器源码后，运行上述构建命令。通过 SSH 启动已有 VNC 桌面时，可用 `env/bin/python -m tools.launch_gui :1`，其中 `:1` 替换为实际显示编号。界面「连接设置」可以修改摄像头设备节点和电脑接收地址。
 
 ## Windows 接收端
 

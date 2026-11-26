@@ -110,6 +110,7 @@ class App:
         self.activity.pack(side='right', padx=(12, 0))
         self.activity.start(12)
         self.status.set('正在处理，窗口可继续操作…')
+        # 记下启动任务时的输入版本，防止旧页面的结果覆盖新页面。
         version = self.version if input_bound else None
         def work():
             try:
@@ -121,6 +122,7 @@ class App:
     def poll(self):
         if self.closed:
             return
+        # 后台线程把结果放进队列，由界面线程取出并更新窗口。
         try:
             while True:
                 callback, version, result, error = self.events.get_nowait()
@@ -278,6 +280,7 @@ class App:
         self.refresh_saved_summaries()
         self.ocr_evidence_id = None
         self.show_summary('正在识别，请在OCR完成后重新生成摘要。')
+        # 用当前图做 OCR，同时保留原图和校正步骤，便于验收时对照。
         original = self.raw_image.copy()
         operations = list(self.image_operations)
         reading_order = self.ocr_order()
@@ -764,6 +767,7 @@ class App:
         if self.frame is None:
             self.status.set('请先开启有效预览')
             return
+        # 把当前预览帧复制为一张独立页面，供后续校正和识别。
         image = self.frame.copy()
         origin = 'camera:'+self.cap.device
         self.set_image(image, origin=origin)
