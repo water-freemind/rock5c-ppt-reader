@@ -1,4 +1,4 @@
-"""标准库单元测试，不能作为摄像头或真实LLM测试证据。"""
+"""测试记录保存、TCP 消息边界和本地摘要客户端的错误处理。"""
 import json
 import socket
 import struct

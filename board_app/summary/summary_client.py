@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 
 def missing_numeric_facts(source, summary):
-    """保守的字面覆盖检查，不声称能验证摘要语义或推理正确性。"""
+    """列出原文中有、摘要中未找到的数字。"""
     pattern = (r'(?:\d{4}年)?\d{1,2}月\d{1,2}日|'
                r'\d+(?:\.\d+)?(?:\s*[x×]\s*\d+)*\s*(?:GB|MB|TB|fps|℃|摄氏度|页|行|帧)|'
                r'\d+(?:\.\d+)?')

@@ -1,4 +1,4 @@
-"""课堂快照/过期检查/分层引用与真实Tk集成，后端替身不冒充NPU验收。"""
+"""用测试后端检查课堂快照、页码引用和 Tk 界面。"""
 import io
 from pathlib import Path
 import re

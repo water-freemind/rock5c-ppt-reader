@@ -1,4 +1,4 @@
-"""队列持久化、并发新修订与真实TCP丢ACK恢复；不调用任何模型。"""
+"""测试发送队列重试、新修订保护和 TCP 回执丢失后的重发。"""
 import json
 from pathlib import Path
 import socket

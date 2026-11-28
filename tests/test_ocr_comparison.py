@@ -1,4 +1,4 @@
-"""对照持久化、参考CER及真实Tk回调；替身OCR不作为NPU证据。"""
+"""用固定 OCR 结果测试对照保存、字符错误率和窗口回调。"""
 import json
 from pathlib import Path
 import tempfile

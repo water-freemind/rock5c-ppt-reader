@@ -1,4 +1,4 @@
-"""生成帧验证稳定/变化/质量筛选和落盘恢复，不冒充真实摄像头测试。"""
+"""用生成的画面测试自动采集、去重和重启后读取。"""
 import json
 from pathlib import Path
 import tempfile
